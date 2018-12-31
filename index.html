@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta http-equiv="X-UA-Compatible" content="ie=edge">
+   <title>Mesh Data Generator</title>
+   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css">
+</head>
+<body>
+   <div class="container">
+      <br>
+
+      <div class="row">
+         <h1 class="col-md-12">Mesh Data Generator</h1>
+      </div>
+
+      <br>
+
+      <h2>Authentication</h2>
+      <form class="row">
+         <div class="col-md-4">
+            <div class="input-group">
+               <div class="input-group-prepend">
+                  <label class="input-group-text" for="userName">Username</label>
+               </div>
+               <input type="text" class="form-control" id="userName" placeholder="username">
+            </div>
+         </div>
+         <div class="col-md-4">
+            <div class="input-group">
+               <div class="input-group-prepend">
+                  <label class="input-group-text" for="password">Password</label>
+               </div>
+               <input type="text" class="form-control" id="password" placeholder="password">
+            </div>
+         </div>
+      </form>
+
+      <br>
+
+      <h2>Create Nodes</h2>
+      <form>
+         <div class="row">
+            <div class="col-md-8">
+               <div class="input-group">
+                  <div class="input-group-prepend">
+                     <label class="input-group-text" for="createNodeParentUuid">Parent UUID</label>
+                  </div>
+                  <input type="text" class="form-control" id="createNodeParentUuid" placeholder="2aa83a2b3cba40a1a83a2b3cba90a1de">
+               </div>
+            </div>
+            
+            <div class="col-md-4">
+               <div class="input-group mb-5">
+                  <div class="input-group-prepend">
+                     <label class="input-group-text" for="createNodeSchema">Schema</label>
+                  </div>
+                  <select class="custom-select" id="createNodeSchema">
+                     <option disabled selected>Choose...</option>
+                  </select>
+               </div>
+            </div>
+         </div>
+         
+         <div class="row">
+            <div class="col-md-3">
+               <div class="input-group mb-3">
+                  <div class="input-group-prepend">
+                     <label class="input-group-text" for="createNodeAmount">Amount</label>
+                  </div>
+                  <input type="number" class="form-control text-right" id="createNodeAmount" placeholder="0">
+               </div>
+            </div>
+
+            <div class="col-md-7">
+               <div class="input-group">
+                  <div class="input-group-prepend">
+                     <label class="input-group-text" for="createNodeName">Name</label>
+                  </div>
+                  <input type="text" class="form-control" id="createNodeName" placeholder="Test">
+               </div>
+            </div>
+   
+            <div class="col-md-2 text-right">
+               <button id="btnNodeCreate" type="button" class="btn btn-primary">CREATE</button>
+            </div>
+         </div>
+
+      </form>
+
+      <br>
+      <hr>
+      <br>
+
+   </div>
+
+   <div class="container">
+      <div id="logMessages" class="row" style="overflow-y: scroll; height: 12rem;">
+      </div>
+   </div>
+
+   <script
+      src="https://code.jquery.com/jquery-3.3.1.min.js"
+      integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
+      crossorigin="anonymous"
+   >
+   </script>
+
+   <script>
+      $(document).ready(function() {
+
+         // VARIABLES
+
+         let appData = {
+            token: undefined,
+            headers: {
+               'Accept': 'application/json',
+               'Cache-Control': 'no-cache',
+               'Content-Type': 'application/json'
+            },
+            logMessages: [],
+            schemas: undefined,
+            userName: undefined,
+            password: undefined,
+            createNodeParentUuid: undefined,
+            createNodeSchema: undefined,
+            createNodeName: undefined,
+            createNodeAmount: undefined
+         };
+
+         let inputElements = {
+            userName: $('#userName'),
+            password: $('#password'),
+            createNodeParentUuid: $('#createNodeParentUuid'),
+            createNodeSchema: $('#createNodeSchema'),
+            createNodeName: $('#createNodeName'),
+            createNodeAmount: $('#createNodeAmount'),
+            btnNodeCreate: $('#btnNodeCreate'),
+            logMessages: $('#logMessages')
+         };
+
+
+         // BASIC FUNCTIONS
+
+         // Log in
+         getToken = async () => {
+            if (!appData.token) {
+               let response = await $.ajax({
+                  url: '/api/v1/auth/login',
+                  type: 'POST',
+                  headers: appData.headers,
+                  dataType: 'json',
+                  data: JSON.stringify({
+                     username: appData.userName,
+                     password: appData.password
+                  }),
+                  success: (response) => response,
+                  error: (error) => reqLog('LOGIN REQUEST ERROR - Response: ' + JSON.stringify(error))
+               });
+               if (response['token']) {
+                  appData.token = response['token'];
+               } else {
+                  throw new Error('Malformed login response');
+               }
+            }
+            return appData.token;
+         }
+
+         // XHR GET request
+         reqGet = async (url, data) => {
+            // configure request
+            let reqConf = {
+                  url,
+                  type: 'GET',
+                  headers: {
+                     ...appData.headers,
+                     'set-cookie': 'mesh.token=' + getToken()
+                  },
+                  success: (response) => response,
+                  error: (error) => reqLog('GET REQUEST ERROR - Response: ' + JSON.stringify(error))
+            };
+            // if data param provided, send it
+            if (data) {
+               Object.assign(reqConf, {data});
+            }
+            return await $.ajax(reqConf);
+         }
+
+         // XHR POST request
+         reqPost = async (url, data) => {
+            // configure request
+            let reqConf = {
+                  url,
+                  type: 'POST',
+                  headers: {
+                     ...appData.headers,
+                     'set-cookie': 'mesh.token=' + getToken()
+                  },
+                  success: (response) => response,
+                  error: (error) => reqLog('POST REQUEST ERROR - Response: ' + JSON.stringify(error))
+            };
+            // if data param provided, send it
+            if (data) {
+               Object.assign(reqConf, {
+                  dataType: 'json',
+                  data: JSON.stringify(data)
+               });
+            }
+            return await $.ajax(reqConf);
+         }
+
+         reqLog = (message) => {
+            // store
+            appData.logMessages.push(message);
+            // update DOM
+            inputElements.logMessages
+               .append($('<small></small>')
+                  .addClass('col-md-12')
+                  .css('white-space', 'nowrap')
+                  .text(message)
+               )
+               .fadeIn('slow');
+         }
+
+
+         // MAIN FUNCTIONS
+
+         // Get schemas
+         getSchemas = async () => {
+            let response = await reqGet(
+               '/api/v1/schemas',
+               'perPage=99'
+            );
+            if (response['data']) {
+               appData.schemas = response['data'];
+            } else {
+               throw new Error('Malformed schema response');
+            }
+
+            // update dom
+            appData.schemas.forEach(schema => {
+               inputElements.createNodeSchema
+                  .append($('<option></option>')
+                     .val(schema.uuid)
+                     .text(schema.name)
+                  );
+            });
+         }
+
+         // Create folder
+         nodeCreate = async (name) => {
+            // get schmema data
+            let schema = appData.schemas.find((schema) => schema.uuid === appData.createNodeSchema);
+            // send request
+            let result = await reqPost(
+               '/api/v1/demo/nodes?lang=en',
+               {
+                  fields: {
+                     slug: name.toLowerCase(),
+                     name: name
+                  },
+                  parentNode: {
+                     uuid: appData.createNodeParentUuid
+                  },
+                  schema: {
+                     name: schema.name,
+                     uuid: schema.uuid,
+                     version: schema.version
+                  },
+                  language: 'en'
+               }
+            );
+            await reqLog('NODE CREATED - Response:' + JSON.stringify(result));
+         }
+
+         nodeCreateBulk = async () => {
+            for (let index = 0; index < appData.createNodeAmount; index++) {
+               await nodeCreate(appData.createNodeName + '-' + index);
+            }
+         }
+
+
+         // INIT APP
+
+         // preset data
+         inputElements.userName.val('admin');
+         appData.userName = 'admin';
+         inputElements.password.val('admin');
+         appData.password = 'admin';
+         inputElements.createNodeAmount.val(3);
+         appData.createNodeAmount = 3;
+         inputElements.createNodeName.val('Test');
+         appData.createNodeName = 'Test';
+
+         getSchemas()
+            .then(() => {
+               appData.createNodeSchema = inputElements.createNodeSchema
+                  .find('option')
+                  .filter((index, element) => $(element).text() === 'folder')
+                  .attr('selected', true)
+                  .val();
+            });
+
+         // make data listening to inputs
+         Object.getOwnPropertyNames(inputElements).forEach(key => {
+            inputElements[key].on('change textInput input', data => {
+               appData[key] = data.currentTarget.value;
+            });
+         });
+
+         // bind buttons
+         inputElements.btnNodeCreate.click(() => nodeCreateBulk());
+
+      });
+   </script>
+</body>
+</html>
+
+
+
+
+
