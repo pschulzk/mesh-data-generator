@@ -363,7 +363,7 @@
          // Create many microschemas
          microschemaCreateBulk = async () => {
             for (let index = 0; index < appData.createMicroschemaAmount; index++) {
-               await schemaCreate(appData.createMicroschemaName + '_' + index);
+               await microschemaCreate(appData.createMicroschemaName + '_' + index);
             }
          }
 
