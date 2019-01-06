@@ -32,12 +32,66 @@
                <div class="input-group-prepend">
                   <label class="input-group-text" for="password">Password</label>
                </div>
-               <input type="text" class="form-control" id="password" placeholder="password">
+               <input type="password" class="form-control" id="password" placeholder="password">
             </div>
          </div>
       </form>
 
-      <br>
+      <hr>
+
+      <h2>Create Schemas</h2>
+      <form class="row">
+         <div class="col-md-3">
+            <div class="input-group mb-3">
+               <div class="input-group-prepend">
+                  <label class="input-group-text" for="createSchemaAmount">Amount</label>
+               </div>
+               <input type="number" class="form-control text-right" id="createSchemaAmount" placeholder="0">
+            </div>
+         </div>
+
+         <div class="col-md-7">
+            <div class="input-group">
+               <div class="input-group-prepend">
+                  <label class="input-group-text" for="createSchemaName">Name</label>
+               </div>
+               <input type="text" class="form-control" id="createSchemaName" placeholder="Test">
+            </div>
+         </div>
+
+         <div class="col-md-2 text-right">
+            <button id="btnSchemaCreate" type="button" class="btn btn-primary">CREATE</button>
+         </div>
+      </form>
+
+      <hr>
+
+      <h2>Create Microschemas</h2>
+      <form class="row">
+         <div class="col-md-3">
+            <div class="input-group mb-3">
+               <div class="input-group-prepend">
+                  <label class="input-group-text" for="createMicroschemaAmount">Amount</label>
+               </div>
+               <input type="number" class="form-control text-right" id="createMicroschemaAmount" placeholder="0">
+            </div>
+         </div>
+
+         <div class="col-md-7">
+            <div class="input-group">
+               <div class="input-group-prepend">
+                  <label class="input-group-text" for="createMicroschemaName">Name</label>
+               </div>
+               <input type="text" class="form-control" id="createMicroschemaName" placeholder="Test">
+            </div>
+         </div>
+
+         <div class="col-md-2 text-right">
+            <button id="btnMicroschemaCreate" type="button" class="btn btn-primary">CREATE</button>
+         </div>
+      </form>
+
+      <hr>
 
       <h2>Create Nodes</h2>
       <form>
@@ -86,7 +140,6 @@
                <button id="btnNodeCreate" type="button" class="btn btn-primary">CREATE</button>
             </div>
          </div>
-
       </form>
 
       <br>
@@ -123,6 +176,10 @@
             schemas: undefined,
             userName: undefined,
             password: undefined,
+            createSchemaAmount: undefined,
+            createSchemaName: undefined,
+            createMicroschemaAmount: undefined,
+            createMicroschemaName: undefined,
             createNodeParentUuid: undefined,
             createNodeSchema: undefined,
             createNodeName: undefined,
@@ -132,12 +189,21 @@
          let inputElements = {
             userName: $('#userName'),
             password: $('#password'),
+            createSchemaAmount: $('#createSchemaAmount'),
+            createSchemaName: $('#createSchemaName'),
+            createMicroschemaAmount: $('#createMicroschemaAmount'),
+            createMicroschemaName: $('#createMicroschemaName'),
             createNodeParentUuid: $('#createNodeParentUuid'),
             createNodeSchema: $('#createNodeSchema'),
             createNodeName: $('#createNodeName'),
             createNodeAmount: $('#createNodeAmount'),
-            btnNodeCreate: $('#btnNodeCreate'),
             logMessages: $('#logMessages')
+         };
+
+         let actionElements = {
+            btnSchemaCreate: $('#btnSchemaCreate'),
+            btnMicroschemaCreate: $('#btnMicroschemaCreate'),
+            btnNodeCreate: $('#btnNodeCreate')
          };
 
 
@@ -238,6 +304,9 @@
                throw new Error('Malformed schema response');
             }
 
+            // sort schemas by name property
+            appData.schemas.sort((a, b) => a.name.localeCompare(b.name));
+
             // update dom
             appData.schemas.forEach(schema => {
                inputElements.createNodeSchema
@@ -248,7 +317,57 @@
             });
          }
 
-         // Create folder
+         // Create schema
+         schemaCreate = async (name) => {
+            // send request
+            let result = await reqPost(
+               '/api/v1/schemas',
+               {
+                  name: name.toLowerCase(),
+                  fields: [
+                     {
+                        type: 'html',
+                        name: 'field_01'
+                     }
+                  ]
+               }
+            );
+            await reqLog('SCHEMA CREATED - Response:' + JSON.stringify(result));
+         }
+
+         // Create many schemas
+         schemaCreateBulk = async () => {
+            for (let index = 0; index < appData.createSchemaAmount; index++) {
+               await schemaCreate(appData.createSchemaName + '_' + index);
+            }
+         }
+
+         // Create microschema
+         microschemaCreate = async (name) => {
+            // send request
+            let result = await reqPost(
+               '/api/v1/microschemas',
+               {
+                  name: name.toLowerCase(),
+                  fields: [
+                     {
+                        type: 'html',
+                        name: 'field_01'
+                     }
+                  ]
+               }
+            );
+            await reqLog('MICROSCHEMA CREATED - Response:' + JSON.stringify(result));
+         }
+
+         // Create many microschemas
+         microschemaCreateBulk = async () => {
+            for (let index = 0; index < appData.createMicroschemaAmount; index++) {
+               await schemaCreate(appData.createMicroschemaName + '_' + index);
+            }
+         }
+
+         // Create node
          nodeCreate = async (name) => {
             // get schmema data
             let schema = appData.schemas.find((schema) => schema.uuid === appData.createNodeSchema);
@@ -274,6 +393,7 @@
             await reqLog('NODE CREATED - Response:' + JSON.stringify(result));
          }
 
+         // Create many nodes
          nodeCreateBulk = async () => {
             for (let index = 0; index < appData.createNodeAmount; index++) {
                await nodeCreate(appData.createNodeName + '-' + index);
@@ -288,10 +408,21 @@
          appData.userName = 'admin';
          inputElements.password.val('admin');
          appData.password = 'admin';
-         inputElements.createNodeAmount.val(3);
-         appData.createNodeAmount = 3;
-         inputElements.createNodeName.val('Test');
-         appData.createNodeName = 'Test';
+
+         inputElements.createSchemaAmount.val(30);
+         appData.createSchemaAmount = 30;
+         inputElements.createSchemaName.val('Schema');
+         appData.createSchemaName = 'Schema';
+
+         inputElements.createMicroschemaAmount.val(30);
+         appData.createMicroschemaAmount = 30;
+         inputElements.createMicroschemaName.val('Microschema');
+         appData.createMicroschemaName = 'Microschema';
+
+         inputElements.createNodeAmount.val(30);
+         appData.createNodeAmount = 30;
+         inputElements.createNodeName.val('Testnode');
+         appData.createNodeName = 'Testnode';
 
          getSchemas()
             .then(() => {
@@ -310,7 +441,9 @@
          });
 
          // bind buttons
-         inputElements.btnNodeCreate.click(() => nodeCreateBulk());
+         actionElements.btnNodeCreate.click(() => nodeCreateBulk());
+         actionElements.btnSchemaCreate.click(() => schemaCreateBulk());
+         actionElements.btnMicroschemaCreate.click(() => microschemaCreateBulk());
 
       });
    </script>
